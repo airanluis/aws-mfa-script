@@ -23,7 +23,7 @@ The MFA code is the code your MFA device gives you.
 At a command prompt run the following command.
 
 ```bash
-mfa <mfacode> <optional-aws-profile>
+mfa <optional-aws-profile>
 ```
 
 ### Alias Note

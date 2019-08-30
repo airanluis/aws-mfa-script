@@ -22,29 +22,31 @@ else
 fi
 
 # 1 or 2 args ok
-if [[ $# -ne 1 && $# -ne 2 ]]; then
-  echo "Usage: $0 <MFA_TOKEN_CODE> <AWS_CLI_PROFILE>"
+if [[ $# -ne 1 ]]; then
+  echo "Usage: $0 <AWS_CLI_PROFILE>"
   echo "Where:"
-  echo "   <MFA_TOKEN_CODE> = Code from virtual MFA device"
   echo "   <AWS_CLI_PROFILE> = aws-cli profile usually in $HOME/.aws/config"
   exit 2
 fi
-
 echo "Reading config..."
-if [ ! -r ~/mfa.cfg ]; then
+if [ ! -r ~/git/aws-mfa-script/mfa.cfg ]; then
   echo "No config found.  Please create your mfa.cfg.  See README.txt for more info."
   exit 2
 fi
 
-AWS_CLI_PROFILE=${2:-default}
-MFA_TOKEN_CODE=$1
-ARN_OF_MFA=$(grep "^$AWS_CLI_PROFILE" ~/mfa.cfg | cut -d '=' -f2- | tr -d '"')
+AWS_CLI_PROFILE=${1:-default}
+ARN_OF_MFA=$(grep "^${AWS_CLI_PROFILE}-mfa" ~/git/aws-mfa-script/mfa.cfg | cut -d '=' -f2- | tr -d '"')
+ASSUMED_ROLE=$(grep "^${AWS_CLI_PROFILE}-role" ~/git/aws-mfa-script/mfa.cfg | cut -d '=' -f2- | tr -d '"')
+
+echo "Enter MFA code for ${ARN_OF_MFA}: "
+read MFA_TOKEN_CODE
 
 echo "AWS-CLI Profile: $AWS_CLI_PROFILE"
 echo "MFA ARN: $ARN_OF_MFA"
+echo "ASSUMED ROLE: $ASSUMED_ROLE"
 echo "MFA Token Code: $MFA_TOKEN_CODE"
 
 echo "Your Temporary Creds:"
-aws --profile $AWS_CLI_PROFILE sts get-session-token --duration 129600 \
+aws sts assume-role --role-arn $ASSUMED_ROLE --role-session-name $AWS_CLI_PROFILE --profile $AWS_CLI_PROFILE \
   --serial-number $ARN_OF_MFA --token-code $MFA_TOKEN_CODE --output text \
   | awk '{printf("export AWS_ACCESS_KEY_ID=\"%s\"\nexport AWS_SECRET_ACCESS_KEY=\"%s\"\nexport AWS_SESSION_TOKEN=\"%s\"\nexport AWS_SECURITY_TOKEN=\"%s\"\n",$2,$4,$5,$5)}' | tee ~/.token_file
